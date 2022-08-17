@@ -2,7 +2,7 @@ variable "output_directory" {
     type = string
 }
 
-variable "docker_version" {
+variable "kubernetes_version" {
     type = string
 }
 
@@ -11,9 +11,9 @@ variable "debian_version" {
 }
 
 locals {
-    vm_name = "docker"
+    vm_name = "kubernetes-${var.kubernetes_version}"
     debian_version = var.debian_version
-    docker_version = var.docker_version
+    kubernetes_version = var.kubernetes_version
     http_directory = "${path.root}/http"
     iso_url = "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-${local.debian_version}-amd64-netinst.iso"
     iso_checksum = "file:https://cdimage.debian.org/debian-cd/${local.debian_version}/amd64/iso-cd/SHA256SUMS"
@@ -38,7 +38,7 @@ locals {
     ]
 }
 
-source "virtualbox-iso" "docker" {
+source "virtualbox-iso" "kubernetes" {
     boot_command = local.boot_command
     boot_wait = "6s"
     cpus = 2
@@ -46,7 +46,7 @@ source "virtualbox-iso" "docker" {
     disk_size = 10240
     guest_additions_path = "VBoxGuestAdditions_{{.Version}}.iso"
     guest_additions_url = ""
-    guest_os_type = "docker_64"
+    guest_os_type = "kubernetes_64"
     hard_drive_interface = "sata"
     headless = false
     http_content = {
@@ -54,7 +54,7 @@ source "virtualbox-iso" "docker" {
     }
     iso_checksum = local.iso_checksum
     iso_url = local.iso_url
-    output_directory = "${var.output_directory}/packer-build/output/artifacts/${local.vm_name}/${var.docker_version}/virtualbox/"
+    output_directory = "${var.output_directory}/packer-build/output/artifacts/${local.vm_name}/${var.kubernetes_version}/virtualbox/"
     shutdown_command = local.shutdown_command
     ssh_password = "vagrant"
     ssh_port = 22
@@ -70,7 +70,7 @@ source "virtualbox-iso" "docker" {
     ]
 }
 
-source "parallels-iso" "docker" {
+source "parallels-iso" "kubernetes" {
     boot_command = local.boot_command
     boot_wait = "6s"
     cpus = 2
@@ -93,7 +93,7 @@ source "parallels-iso" "docker" {
     vm_name = "${local.vm_name}"
 }
 
-source "vmware-iso" "docker" {
+source "vmware-iso" "kubernetes" {
     boot_command = local.boot_command
     boot_wait = "6s"
     cpus = 2
@@ -121,7 +121,7 @@ source "vmware-iso" "docker" {
     vmx_remove_ethernet_interfaces = true
 }
 
-source "hyperv-iso" "docker" {
+source "hyperv-iso" "kubernetes" {
     boot_command = local.boot_command
     boot_wait = "6s"
     cpus = 2
@@ -150,10 +150,10 @@ build {
     name = "builder"
 
     sources = [
-        "source.virtualbox-iso.docker",
-        "source.parallels-iso.docker",
-        "source.vmware-iso.docker",
-        "source.hyperv-iso.docker"
+        "source.virtualbox-iso.kubernetes",
+        "source.parallels-iso.kubernetes",
+        "source.vmware-iso.kubernetes",
+        "source.hyperv-iso.kubernetes"
 
     ]
 
@@ -172,7 +172,7 @@ build {
     }
 
     provisioner "shell" {
-        only = ["virtualbox-iso.docker"]
+        only = ["virtualbox-iso.kubernetes"]
         environment_vars  = ["HOME_DIR=/home/vagrant"]
         execute_command   = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
         expect_disconnect = true
@@ -182,7 +182,7 @@ build {
     }
 
     provisioner "shell" {
-        only = ["parallels-iso.docker"]
+        only = ["parallels-iso.kubernetes"]
         environment_vars  = ["HOME_DIR=/home/vagrant"]
         execute_command   = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
         expect_disconnect = true
@@ -192,7 +192,7 @@ build {
     }
 
     provisioner "shell" {
-        only = ["vmware-iso.docker"]
+        only = ["vmware-iso.kubernetes"]
         environment_vars  = ["HOME_DIR=/home/vagrant"]
         execute_command   = "echo 'vagrant' | {{ .Vars }} sudo -S -E sh -eux '{{ .Path }}'"
         expect_disconnect = true
@@ -208,10 +208,11 @@ build {
 
     provisioner "shell" {
         environment_vars = [
-            "VERSION=${local.docker_version}"
+            "VERSION=${local.kubernetes_version}"
         ]
         scripts = [
             "${path.root}/provision-scripts/system-os.sh",
+            "${path.root}/provision-scripts/kubernetes.sh"
         ]
     }
 
@@ -228,8 +229,11 @@ build {
     post-processors {
         post-processor "vagrant" {
           keep_input_artifact = false
-          output = "${var.output_directory}/packer-build/output/boxes/${local.vm_name}/${var.docker_version}/{{.Provider}}/{{.BuildName}}.box"
+          output = "${var.output_directory}/packer-build/output/boxes/${local.vm_name}/${var.kubernetes_version}/{{.Provider}}/{{.BuildName}}.box"
           vagrantfile_template = "${path.root}/vagrantfile.rb"
+        }
+        post-processor "manifest" {
+            output = "${var.output_directory}/${var.kubernetes_version}/manifest.json"
         }
     }
 

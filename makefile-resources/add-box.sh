@@ -1,0 +1,2 @@
+BOXFILE=$(cat /tmp/packer-build/$CURRENT_KUBERNETES_VERSION/manifest.json | jq '.builds[].files[].name' | sed 's/"//g' | tail -n 1)
+vagrant box add --provider $PROVIDER -f --name Kubernetes-$CURRENT_KUBERNETES_VERSION-box $BOXFILE

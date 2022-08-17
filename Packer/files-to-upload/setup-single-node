@@ -1,0 +1,12 @@
+#!/bin/bash -x
+sudo kubeadm init --apiserver-cert-extra-sans 127.0.0.1
+
+sudo chmod o+r /etc/kubernetes/admin.conf 
+export KUBECONFIG=/etc/kubernetes/admin.conf
+
+kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
+
+kubectl taint nodes --all node-role.kubernetes.io/master-
+kubectl taint nodes --all  node-role.kubernetes.io/control-plane-
+
+echo "If not error, a kubernetes single node was configured"

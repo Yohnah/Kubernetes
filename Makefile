@@ -1,59 +1,53 @@
-CURRENT_BOX_VERSION := $(subst ", ,$(shell curl -sS "https://app.vagrantup.com/api/v1/box/Yohnah/Docker" | jq '.current_version.version'))
-CURRENT_DOCKER_VERSION := $(shell curl -s https://docs.docker.com/engine/release-notes/ | grep -i "nomunge" | grep -v "Version" | grep -v "<ul>" | head -n 1 | sed -e 's/<[^>]*>//g' | sed 's/ //g')
-CURRENT_DEBIAN_VERSION := $(shell curl -s https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/ | grep -oE "debian-(.*)-amd64-netinst.iso" | sed -e 's/<[^>]*>//g' | cut -d">" -f 1 | sed 's/"//g' | head -n 1 | cut -d- -f2)
-OUTPUT_DIRECTORY := /tmp
-DATETIME := $(shell date "+%Y-%m-%d %H:%M:%S")
-PROVIDER := virtualbox
+export CURRENT_BOX_VERSION := $(shell TYPE=current_box_version sh ./makefile-resources/get-versions.sh)
+export CURRENT_KUBERNETES_VERSION := $(shell TYPE=current_kubernetes_version sh ./makefile-resources/get-versions.sh)
+export CURRENT_DEBIAN_VERSION := $(shell TYPE=current_debian_version sh ./makefile-resources/get-versions.sh)
+export ALLKUBERNETESRELEASES := $(shell TYPE=all_kubernetes_releases sh ./makefile-resources/get-versions.sh)
+export OUTPUT_DIRECTORY := /tmp
+export PACKER_DIRECTORY_OUTPUT := $(OUTPUT_DIRECTORY)/packer-build
+export DATETIME := $(shell date "+%Y-%m-%d %H:%M:%S")
+export PROVIDER := virtualbox
+export MANIFESTFILE := $(PACKER_DIRECTORY_OUTPUT)/$(CURRENT_KUBERNETES_VERSION)/manifest.json
+export UPLOADER_DIRECTORY := $(PACKER_DIRECTORY_OUTPUT)/toupload
 
-.PHONY: all version requirements build load_box destroy_box test clean_test upload clean
+.PHONY: all versions checkifbuild
 
 all: version build test
 
-version: 
+versions: 
 	@echo "========================="
-	@echo Current Docker Version: $(CURRENT_DOCKER_VERSION)
+	@echo Current Kubernetes Version: $(CURRENT_KUBERNETES_VERSION)
 	@echo Current Box Version: $(CURRENT_BOX_VERSION)
 	@echo Current Debian Version: $(CURRENT_DEBIAN_VERSION)
 	@echo Provider: $(PROVIDER)
 	@echo "========================="
-	@echo ""
-ifeq ($(shell echo "$(CURRENT_DOCKER_VERSION)" | sed 's/ //g'),$(shell echo "$(CURRENT_BOX_VERSION)" | sed 's/ //g'))
-	@echo Not a new docker version exists, so, build cannot be launched
-	exit 1
-else
-	@echo New docker versions exists, build job can be launched
-	exit 0
-endif
+	@echo ::set-output name=kubernetesversion::$(CURRENT_KUBERNETES_VERSION)
+	@echo ::set-output name=debianversion::$(CURRENT_DEBIAN_VERSION)
+	@echo ::set-output name=boxversion::$(CURRENT_BOX_VERSION)
+	@echo ::set-output name=allkubernetesreleases::$(ALLKUBERNETESRELEASES)
+
+checkifbuild:
+	@echo "========================="
+	@echo New kubernetes box must be built: $(shell CURRENT_KUBERNETES_VERSION=$(CURRENT_KUBERNETES_VERSION) CURRENT_BOX_VERSION=$(CURRENT_BOX_VERSION) TYPE=checkifbuild sh ./makefile-resources/get-versions.sh)
+	@echo "========================="
+	@echo ::set-output name=verdict::$(shell CURRENT_KUBERNETES_VERSION=$(CURRENT_KUBERNETES_VERSION) CURRENT_BOX_VERSION=$(CURRENT_BOX_VERSION) TYPE=checkifbuild sh ./makefile-resources/get-versions.sh)
 
 requirements:
-	brew install vagrant
+	mkdir -p $(PACKER_DIRECTORY_OUTPUT)/$(CURRENT_KUBERNETES_VERSION)/$(PROVIDER)
+	mkdir -p $(PACKER_DIRECTORY_OUTPUT)/toupload
+	mkdir -p $(PACKER_DIRECTORY_OUTPUT)/test/$(CURRENT_KUBERNETES_VERSION)/$(PROVIDER)
 
-build:
-	cd packer; packer build -var "docker_version=$(CURRENT_DOCKER_VERSION)" -var "debian_version=$(CURRENT_DEBIAN_VERSION)" -var "output_directory=/tmp" -only builder.$(PROVIDER)-iso.docker packer.pkr.hcl
+build: requirements
+	sh ./makefile-resources/build-kubernetes-box.sh
+	@echo ::set-output name=manifestfile::$(MANIFESTFILE)
 
-test:
-	vagrant box add -f --name "testing-docker-box" $(OUTPUT_DIRECTORY)/packer-build/output/boxes/docker/$(CURRENT_DOCKER_VERSION)/$(PROVIDER)/docker.box
-	mkdir -p $(OUTPUT_DIRECTORY)/vagrant-docker-test; cd $(OUTPUT_DIRECTORY)/vagrant-docker-test; vagrant init testing-docker-box; \
-	vagrant up --provider $(PROVIDER); \
-	vagrant provision; \
-	DOCKER_HOST="tcp://$(vagrant ssh-config | grep -i "HostName" | awk '{ print $2 }'):$(vagrant port --guest 2375)/" $(HOME)/.Yohnah/Docker/docker run hello-world; \
-	vagrant destroy -f 
+add_box:
+	sh ./makefile-resources/add-box.sh
 
-load_box:
-	vagrant box add -f --name "testing-docker-box" $(OUTPUT_DIRECTORY)/packer-build/output/boxes/docker/$(CURRENT_DOCKER_VERSION)/$(PROVIDER)/docker.box
-	mkdir -p $(OUTPUT_DIRECTORY)/vagrant-docker-test; cd $(OUTPUT_DIRECTORY)/vagrant-docker-test; vagrant init testing-docker-box; \
-	vagrant up --provider $(PROVIDER); \
-	vagrant ssh
-
-destroy_box:
-	cd $(OUTPUT_DIRECTORY)/vagrant-docker-test; vagrant destroy -f
-
-clean_test:
-	vagrant box remove testing-docker-box || true
-	rm -fr $(OUTPUT_DIRECTORY)/vagrant-docker-test || true
+del_box:
+	sh ./makefile-resources/del-box.sh
 
 upload:
-	cd Packer; packer build -var "input_directory=$(OUTPUT_DIRECTORY)" -var "version=$(CURRENT_DOCKER_VERSION)" -var "version_description=$(DATETIME)" -var "provider=$(PROVIDER)" upload-box-to-vagrant-cloud.pkr.hcl
+	sh ./makefile-resources/upload-kubernetes-box.sh
 
-clean: clean_test
-	rm -fr $(OUTPUT_DIRECTORY)/packer-build || true
+clean:
+	rm -fr $(PACKER_DIRECTORY_OUTPUT) || true
