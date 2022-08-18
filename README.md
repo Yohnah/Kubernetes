@@ -174,7 +174,7 @@ Finally, to list the IP addresses configured onto box, run:
 $ vagrant show-ips
 ~~~
 
-For several examples see the section #TODO
+For several examples see the section [Usage examples](#usage-examples)
 
 
 ## Long prompts
