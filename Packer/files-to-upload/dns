@@ -1,0 +1,27 @@
+#!/bin/bash
+
+export DNSNAME="$(echo $2 | sed -e 's/\.local$//g')"
+export IP="$3"
+
+case $1 in
+        set)
+                cat /usr/local/etc/dns-publish.service.template | envsubst > /etc/systemd/system/dns-publish-$DNSNAME.service
+                systemctl start dns-publish-$DNSNAME.service
+                systemctl enable dns-publish-$DNSNAME.service > /dev/null
+        ;;
+        unset)
+                systemctl disable dns-publish-$DNSNAME.service > /dev/null
+                systemctl stop dns-publish-$DNSNAME.service
+                rm -fr /etc/systemd/system/dns-publish-$DNSNAME.service
+        ;;
+        list)
+                ls /etc/systemd/system/dns-publish* | while read FILE;
+                do
+                        echo -n "Record: "
+                        cat $FILE | grep -i "ExecStart" | awk '{ print $4" "$5 }'
+                done
+        ;;
+
+esac
+
+systemctl daemon-reload

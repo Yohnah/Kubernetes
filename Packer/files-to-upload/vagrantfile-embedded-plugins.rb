@@ -203,4 +203,42 @@ class Plugin < Vagrant.plugin("2")
     InstallKubeCTL
   end
 end
+
+class DNS < Vagrant.plugin(2, :command)
+  def self.synopsis
+    "Manage ZeroConf DNS (Avahi)"
+  end
+  def execute
+    opts = OptionParser.new do |o|
+      o.banner = "Usage: vagrant dns <options>"
+      o.separator ""
+      o.separator "Example:"
+      o.separator "$ vagrant dns set example.local 127.0.0.1  #The \".local\" suffix is always added if not written"
+      o.separator "$ vagrant dns unset example.local"
+      o.separator "$ vagrant dns list"
+      o.separator ""
+      o.separator "Options:"
+      o.separator "   set <DNSNAME> <IP Address>  - Create a new ZeroConf DNS record to point the DNSNAME to specific IP Address"
+      o.separator "   unset <DNSNAME>             - Remove a created ZeroConf DNS record"
+      o.separator "   list                        - List existing ZeroConf DNS records"
+    end
+
+    argv = parse_options(opts)
+    return if !argv
+
+    with_target_vms(nil, single_target: true) do |vm|
+      env = vm.action(:ssh_run, ssh_run_command: "cd /vagrant; sudo /usr/local/bin/dns #{argv.join(" ")}", tty: false,)
+      status = env[:ssh_run_exit_status] || 0
+    end
+
+  end
+end
+
+class Plugin < Vagrant.plugin("2")
+  name "ZeroConf DNS"
+  description "Manage ZeroConf DNS (Avahi)"
+  command "dns" do
+    DNS
+  end
+end
 #VAGRANT-END
