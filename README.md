@@ -28,6 +28,7 @@ ___
     - [Setup a full kubernetes cluster](#setup-a-full-kubernetes-cluster)
     - [Connect to Kubernetes cluster using kubectl](#connect-to-kubernetes-cluster-using-kubectl)
 - [Keep in mind](#keep-in-mind)
+  - [Avahi-daemon is installed](#avahi-daemon-is-installed)
   - [Running on MacOS](#running-on-macos)
   - [Running on VirtualBox](#running-on-virtualbox)
   - [Running on VMWare_Desktop](#running-on-vmware_desktop)
@@ -476,6 +477,12 @@ Or using [kubectl context](https://kubernetes.io/docs/tasks/access-application-c
 
 
 # Keep in mind
+
+## Avahi-daemon is installed
+
+The Yohnah/Kubernetes box has installed avahi-daemon for DNS resolving in local LAN. No specific configuration was performed, so, avahi will work undert its default configuration.
+
+A good practices would be setup avahi-daemon to resolv the hostnane in the LAN on the transit network configured among nodes.
 
 ## Running on MacOS
 
