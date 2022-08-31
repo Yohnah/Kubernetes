@@ -169,12 +169,6 @@ $ alias kubeadm="vagrant kubeadm --"
 ~~~
 ___
 
-Finally, to list the IP addresses configured onto box, run:
-
-~~~
-$ vagrant show-ips
-~~~
-
 For several examples see the section [Usage examples](#usage-examples)
 
 
@@ -263,12 +257,6 @@ $ vagrant kubectl-config > $HOME/.kube/config
 
 ~~~
 $ vagrant install-kubectl
-~~~
-
-- **show-ips**. To list the current configured IP addresses.
-
-~~~
-$ vagrant show-ips
 ~~~
 
 ___

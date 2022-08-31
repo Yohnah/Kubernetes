@@ -51,50 +51,19 @@ Welcome to Kubernetes Linux box for Vagrant by Yohnah
 =================================================
 
 Host Operative System detected: #{Host_OS}
-Yohnah/Docker was successfully installed on your device
+Yohnah/Kubernetes was successfully installed on your device
 
-This box has installed and configured all features, modules and tools to setup a kubernetes cluster using <<kubeadm>> command. To know how kubeadm works visit:
+This box include all installed and configured kubernetes features to create an standar kubernetes cluster by kubeadm (See https://kubernetes.io/docs/reference/setup-tools/kubeadm/)
 
-  https://kubernetes.io/docs/reference/setup-tools/kubeadm/
-
-Or for further information and other kubeadm setup examples, see: https://github.com/Yohnah-org/Kubernetes
+The project repository is https://github.com/Yohnah-org/Kubernetes for further information.
 
 For creating a Kubernetes single node cluster, just run:
 
   $ vagrant setup-single-node
 
-Or, you can create a kubernetes cluster using kubeadm init (see https://kubernetes.io/docs/reference/setup-tools/kubeadm/) by means of vagrant command as follows:
+And run --help argument to see specific vagrant commands for this specific box:
 
-  $ vagrant kubeadm -- <kubeadm arguments> 
-
-  Ex:
-
-    $ vagrant kubeadm -- init # it is the same as "kubeadm init" standard command
-
-For manage the created kubernetes cluster just use the vagrant cli command:
-
-  $ vagrant kubectl -- <kubectl commands>
-
-  Ex:
-
-    $ vagrant kubectl -- get nodes # it is the same as "kubeadm get nodes" standard command
-
-For dumping the kubectl config, just run:
-
-  $ vagrant kubectl-config > /PATH/config #where PATH is the path where you want to dump the kubectl configuration
-
-  And use it with a installed kubectl on host as follows:
-
-  $ kubectl get nodes --kubeconfig /PATH/config
-
-  or
-
-  $ export KUBECONFIG=/PATH/config
-  $ kubectl get nodes
-
-To list the IP addresses running onto guest:
-
-  $ vagrant show-ips
+  $ vagrant --help
 
 MSG
 
@@ -141,8 +110,17 @@ Vagrant.configure(2) do |config|
 
   $setplugins = <<-EOF
   sed -i '/#VAGRANT-BEGIN/,/#VAGRANT-END/d' /vagrant/Vagrantfile
-  cp /vagrant/Vagrantfile /tmp/Vagrantfile.backup
-  cat /tmp/Vagrantfile.backup /usr/local/share/vagrantfile-embedded-plugins.rb > /vagrant/Vagrantfile
+  echo " " >> /vagrant/Vagrantfile
+  echo "#VAGRANT-BEGIN" >> /vagrant/Vagrantfile
+  echo "# Added commands to vagrant cli to manage the kubernetes box. DO NOT MODIFY" >> /vagrant/Vagrantfile
+  ls /usr/local/share/vagrant-plugins/*-vagrantfile-embedded-plugins.rb 2>/dev/null | while read FILE;
+  do
+      cat $FILE >> /vagrant/Vagrantfile
+      echo "" >> /vagrant/Vagrantfile
+      echo "" >> /vagrant/Vagrantfile
+      
+  done
+  echo "#VAGRANT-END" >> /vagrant/Vagrantfile
   EOF
 
   config.vm.provision "shell", inline: $setplugins, run: "always"
